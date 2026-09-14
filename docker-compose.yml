@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:80"
+    environment:
+      - COBOLGOAT_DB=/app/database/cobolgoat.db
+      # VULNERABILITY: secrets in environment variables
+      - DB_PASSWORD=Sup3rS3cr3t!
+      - API_KEY=sk-cobol-prod-8675309-abc123def456
+      - ENCRYPTION_KEY=AES256KEY1234567ABCDEFGHIJKLMNOP
+      - JWT_SECRET=jwt-secret-do-not-share-123
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    volumes:
+      - db-data:/app/database
+      - log-data:/tmp/cobol-goat
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  log-data:

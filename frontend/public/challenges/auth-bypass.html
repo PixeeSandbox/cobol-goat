@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COBOLBank — Administration Console</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-challenge-id="auth-bypass">
+
+<nav class="topbar">
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation">&#9776;</button>
+  <div class="topbar-logo">&#127974; COBOL<span>Bank</span></div>
+  <span class="topbar-badge">Enterprise Portal</span>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-user">Welcome, <strong id="topbar-username">user</strong></div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-sm" id="logout-btn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-section-title">Portal Home</div>
+    <a href="../dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">&#127968;</span> Dashboard</a>
+
+    <div class="sidebar-section-title">Account Services</div>
+    <a href="hardcoded-creds.html" class="sidebar-link" data-challenge-id="hardcoded-creds"><span class="sidebar-link-icon">&#128100;</span> User Authentication</a>
+    <a href="login-sqli.html" class="sidebar-link" data-challenge-id="login-sqli"><span class="sidebar-link-icon">&#128274;</span> Account Access</a>
+
+    <div class="sidebar-section-title">Financial Operations</div>
+    <a href="search-sqli.html" class="sidebar-link" data-challenge-id="search-sqli"><span class="sidebar-link-icon">&#128269;</span> Transaction Search</a>
+    <a href="cmd-injection.html" class="sidebar-link" data-challenge-id="cmd-injection"><span class="sidebar-link-icon">&#128202;</span> Reports Center</a>
+
+    <div class="sidebar-section-title">Customer Management</div>
+    <a href="idor.html" class="sidebar-link" data-challenge-id="idor"><span class="sidebar-link-icon">&#128179;</span> Account Details</a>
+    <a href="auth-bypass.html" class="sidebar-link active" data-challenge-id="auth-bypass"><span class="sidebar-link-icon">&#9881;</span> Administration</a>
+
+    <div class="sidebar-section-title">Compliance &amp; Audit</div>
+    <a href="sensitive-logging.html" class="sidebar-link" data-challenge-id="sensitive-logging"><span class="sidebar-link-icon">&#128196;</span> Activity Monitor</a>
+    <a href="hardcoded-secrets.html" class="sidebar-link" data-challenge-id="hardcoded-secrets"><span class="sidebar-link-icon">&#128295;</span> Configuration</a>
+
+    <div class="sidebar-section-title">System Administration</div>
+    <a href="verbose-errors.html" class="sidebar-link" data-challenge-id="verbose-errors"><span class="sidebar-link-icon">&#128203;</span> API Diagnostics</a>
+    <a href="debug-endpoints.html" class="sidebar-link" data-challenge-id="debug-endpoints"><span class="sidebar-link-icon">&#128187;</span> Developer Tools</a>
+
+    <div class="sidebar-section-title">Banking Tools</div>
+    <a href="integer-overflow.html" class="sidebar-link" data-challenge-id="integer-overflow"><span class="sidebar-link-icon">&#128176;</span> Investment Calculator</a>
+    <a href="path-traversal.html" class="sidebar-link" data-challenge-id="path-traversal"><span class="sidebar-link-icon">&#128196;</span> Document Viewer</a>
+  </aside>
+
+  <main class="main-content">
+
+    <div class="breadcrumb">
+      <a href="../dashboard.html">Dashboard</a>
+      <span class="breadcrumb-sep">/</span>
+      Customer Management
+      <span class="breadcrumb-sep">/</span>
+      Administration Console
+    </div>
+
+    <div class="page-header">
+      <h1>System Administration</h1>
+      <p>Execute privileged administrative operations. User ID and role are submitted with each request.</p>
+    </div>
+
+    <!-- Admin Form -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-header-icon">&#9881;</span>
+        <h2>Administrative Action</h2>
+      </div>
+      <div class="card-body">
+        <form id="bypass-form" style="max-width: 420px;">
+          <div class="form-group">
+            <label for="user-id">User ID</label>
+            <input type="number" id="user-id" value="5">
+          </div>
+          <div class="form-group">
+            <label for="role">Role</label>
+            <select id="role">
+              <option value="user">user</option>
+              <option value="admin">admin</option>
+              <option value="moderator">moderator</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="action">Action</label>
+            <select id="action">
+              <option value="view_all">view_all &mdash; View all user data</option>
+              <option value="delete_user">delete_user &mdash; Delete a user</option>
+              <option value="reset_db">reset_db &mdash; Reset database</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" id="submit-btn">Execute</button>
+        </form>
+
+        <div class="response-area mt-2">
+          <div class="response-label">Server Response</div>
+          <div class="json-output" id="json-output"></div>
+        </div>
+
+        <div class="flag-box" id="flag-box"></div>
+        <div class="msg-error" id="error-msg"></div>
+      </div>
+    </div>
+
+    <!-- Security Notes -->
+    <div class="security-notes">
+      <div class="security-notes-label">&#127891; Security Notes</div>
+
+      <button class="collapsible-btn" data-target="vuln-info">
+        Vulnerability: Missing Function-Level Access Control <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="vuln-info">
+        <p>The COBOL admin check reads the user's role from the HTTP request body &mdash; not from the server-side session. Any user can claim to be admin by simply sending <code>role=admin</code> in their request.</p>
+
+        <div class="code-block mt-2">
+          <div class="code-block-header">
+            <div class="code-block-dots">
+              <span class="code-dot dot-red"></span>
+              <span class="code-dot dot-yellow"></span>
+              <span class="code-dot dot-green"></span>
+            </div>
+            ADMINCHK.cbl
+          </div>
+          <pre>       <span class="code-keyword">WORKING-STORAGE SECTION</span>.
+       01  WS-REQUEST-USER-ID   PIC 9(5).
+       01  WS-REQUEST-ROLE      PIC X(20).  <span class="code-comment">*&gt; From request body!</span>
+       01  WS-REQUEST-ACTION    PIC X(50).
+
+       <span class="code-keyword">PROCEDURE DIVISION</span>.
+       CHECK-ADMIN-ACCESS.
+           <span class="code-comment">*&gt; Role read from user-supplied input</span>
+           <span class="code-comment">*&gt; instead of from the server-side session</span>
+           MOVE 'DENY' TO WS-ADMIN-RESULT
+           IF  <span class="code-vuln">WS-REQUEST-ROLE = 'admin'</span>
+               MOVE 'ALLOW' TO WS-ADMIN-RESULT
+               PERFORM EXECUTE-ADMIN-ACTION
+           ELSE
+               DISPLAY 'Access denied'
+           END-IF.</pre>
+        </div>
+      </div>
+
+      <button class="collapsible-btn" data-target="hint-content">
+        Hint <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="hint-content">
+        <p>Change the Role dropdown from <code>user</code> to <code>admin</code> and click Execute. The server trusts the role you send in the request body instead of looking it up from your session.</p>
+      </div>
+
+      <button class="collapsible-btn" data-target="solution-content">
+        Solution &amp; Remediation <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="solution-content">
+        <h3>Impact</h3>
+        <p>Any authenticated user can perform arbitrary admin actions &mdash; deleting users, resetting the database, viewing all PII &mdash; simply by setting <code>role=admin</code> in their request.</p>
+        <h3>Fix</h3>
+        <div class="code-block mt-1">
+          <div class="code-block-header">Fixed version &mdash; look up role from session store</div>
+          <pre>       <span class="code-comment">*&gt; Look up role from session, not from request</span>
+       EXEC SQL
+           SELECT role INTO :WS-SESSION-ROLE
+           FROM sessions
+           WHERE session_id = :WS-SESSION-TOKEN
+       END-EXEC
+       IF WS-SESSION-ROLE = 'admin'
+           PERFORM EXECUTE-ADMIN-ACTION
+       END-IF</pre>
+        </div>
+        <ul style="color:var(--text-secondary);padding-left:1.5rem;margin-top:8px">
+          <li>Never trust role or privilege data supplied by the client</li>
+          <li>All authorization decisions must reference server-side session or token state</li>
+          <li>Apply defence-in-depth: DB queries should also check the server-validated role</li>
+        </ul>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/app.js"></script>
+<script>
+document.getElementById('bypass-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  setButtonLoading(btn, true);
+  hideError();
+
+  const userId = document.getElementById('user-id').value;
+  const role   = document.getElementById('role').value;
+  const action = document.getElementById('action').value;
+
+  try {
+    const { ok, data } = await apiCall('/api/admin/action', 'POST', { userId, role, action });
+    displayJson(data);
+    if (ok || data.success || role === 'admin') showFlag('COBOL-GOAT{role_from_user_input_auth_bypass}');
+  } catch {
+    const allowed = role === 'admin';
+    const resp = {
+      user_id: userId,
+      role_from_request: role,
+      action,
+      allowed,
+      message: allowed
+        ? `Admin action '${action}' executed successfully`
+        : 'Access denied. Insufficient privileges.',
+      note: allowed
+        ? 'Server trusted role from user input — no session check performed!'
+        : null,
+    };
+    displayJson(resp);
+    if (allowed) showFlag('COBOL-GOAT{role_from_user_input_auth_bypass}');
+    else showError('Access denied. Change your role to admin.');
+  } finally {
+    setButtonLoading(btn, false);
+  }
+});
+</script>
+</body>
+</html>

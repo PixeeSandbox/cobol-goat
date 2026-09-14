@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COBOLBank — Account Details</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-challenge-id="idor">
+
+<nav class="topbar">
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation">&#9776;</button>
+  <div class="topbar-logo">&#127974; COBOL<span>Bank</span></div>
+  <span class="topbar-badge">Enterprise Portal</span>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-user">Welcome, <strong id="topbar-username">user</strong></div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-sm" id="logout-btn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-section-title">Portal Home</div>
+    <a href="../dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">&#127968;</span> Dashboard</a>
+
+    <div class="sidebar-section-title">Account Services</div>
+    <a href="hardcoded-creds.html" class="sidebar-link" data-challenge-id="hardcoded-creds"><span class="sidebar-link-icon">&#128100;</span> User Authentication</a>
+    <a href="login-sqli.html" class="sidebar-link" data-challenge-id="login-sqli"><span class="sidebar-link-icon">&#128274;</span> Account Access</a>
+
+    <div class="sidebar-section-title">Financial Operations</div>
+    <a href="search-sqli.html" class="sidebar-link" data-challenge-id="search-sqli"><span class="sidebar-link-icon">&#128269;</span> Transaction Search</a>
+    <a href="cmd-injection.html" class="sidebar-link" data-challenge-id="cmd-injection"><span class="sidebar-link-icon">&#128202;</span> Reports Center</a>
+
+    <div class="sidebar-section-title">Customer Management</div>
+    <a href="idor.html" class="sidebar-link active" data-challenge-id="idor"><span class="sidebar-link-icon">&#128179;</span> Account Details</a>
+    <a href="auth-bypass.html" class="sidebar-link" data-challenge-id="auth-bypass"><span class="sidebar-link-icon">&#9881;</span> Administration</a>
+
+    <div class="sidebar-section-title">Compliance &amp; Audit</div>
+    <a href="sensitive-logging.html" class="sidebar-link" data-challenge-id="sensitive-logging"><span class="sidebar-link-icon">&#128196;</span> Activity Monitor</a>
+    <a href="hardcoded-secrets.html" class="sidebar-link" data-challenge-id="hardcoded-secrets"><span class="sidebar-link-icon">&#128295;</span> Configuration</a>
+
+    <div class="sidebar-section-title">System Administration</div>
+    <a href="verbose-errors.html" class="sidebar-link" data-challenge-id="verbose-errors"><span class="sidebar-link-icon">&#128203;</span> API Diagnostics</a>
+    <a href="debug-endpoints.html" class="sidebar-link" data-challenge-id="debug-endpoints"><span class="sidebar-link-icon">&#128187;</span> Developer Tools</a>
+
+    <div class="sidebar-section-title">Banking Tools</div>
+    <a href="integer-overflow.html" class="sidebar-link" data-challenge-id="integer-overflow"><span class="sidebar-link-icon">&#128176;</span> Investment Calculator</a>
+    <a href="path-traversal.html" class="sidebar-link" data-challenge-id="path-traversal"><span class="sidebar-link-icon">&#128196;</span> Document Viewer</a>
+  </aside>
+
+  <main class="main-content">
+
+    <div class="breadcrumb">
+      <a href="../dashboard.html">Dashboard</a>
+      <span class="breadcrumb-sep">/</span>
+      Customer Management
+      <span class="breadcrumb-sep">/</span>
+      Account Details
+    </div>
+
+    <div class="page-header">
+      <h1>Account Information</h1>
+      <p>Look up account details by account ID. View balance, owner information, and account status.</p>
+    </div>
+
+    <!-- Lookup Form -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-header-icon">&#128179;</span>
+        <h2>Account Lookup</h2>
+      </div>
+      <div class="card-body">
+        <p class="text-sm text-secondary mb-2">Your account ID is <strong>1001</strong>. Enter any account ID to retrieve details.</p>
+
+        <form id="idor-form" style="max-width: 360px;">
+          <div class="form-group">
+            <label for="account-id">Account ID</label>
+            <input type="number" id="account-id" value="1001" min="1000" max="9999">
+          </div>
+          <div class="form-group">
+            <label for="user-id">Requesting User ID (from session)</label>
+            <input type="text" id="user-id" value="5" placeholder="Session user ID" style="color:var(--text-secondary)">
+          </div>
+          <button type="submit" class="btn btn-primary" id="submit-btn">Look Up Account</button>
+        </form>
+
+        <div class="mt-2">
+          <div class="response-label">Quick Access</div>
+          <ul class="payload-list mt-1">
+            <li><span class="payload-code" data-target="account-id">1001</span> <span class="payload-desc">Your own account</span></li>
+            <li><span class="payload-code" data-target="account-id">1002</span> <span class="payload-desc">Another customer account</span></li>
+            <li><span class="payload-code" data-target="account-id">1003</span> <span class="payload-desc">Administrator account</span></li>
+          </ul>
+        </div>
+
+        <!-- Account details card -->
+        <div id="account-result" class="account-card mt-2">
+          <div class="account-card-row">
+            <span class="account-card-key">Account ID</span>
+            <span class="account-card-val" id="res-id"></span>
+          </div>
+          <div class="account-card-row">
+            <span class="account-card-key">Account Holder</span>
+            <span class="account-card-val" id="res-owner"></span>
+          </div>
+          <div class="account-card-row">
+            <span class="account-card-key">Balance</span>
+            <span class="account-card-val large" id="res-balance"></span>
+          </div>
+          <div class="account-card-row">
+            <span class="account-card-key">Account Type</span>
+            <span class="account-card-val" id="res-type"></span>
+          </div>
+          <div class="account-card-row">
+            <span class="account-card-key">SSN</span>
+            <span class="account-card-val sensitive" id="res-ssn"></span>
+          </div>
+          <div class="account-card-row">
+            <span class="account-card-key">Role</span>
+            <span class="account-card-val" id="res-role"></span>
+          </div>
+        </div>
+
+        <div class="flag-box" id="flag-box"></div>
+        <div class="msg-error" id="error-msg"></div>
+      </div>
+    </div>
+
+    <!-- Security Notes -->
+    <div class="security-notes">
+      <div class="security-notes-label">&#127891; Security Notes</div>
+
+      <button class="collapsible-btn" data-target="vuln-info">
+        Vulnerability: Insecure Direct Object Reference (IDOR) <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="vuln-info">
+        <p>The account lookup endpoint accepts an account ID from the user with no authorization check. There is no verification that the logged-in user is actually allowed to view the requested account.</p>
+
+        <div class="code-block mt-2">
+          <div class="code-block-header">
+            <div class="code-block-dots">
+              <span class="code-dot dot-red"></span>
+              <span class="code-dot dot-yellow"></span>
+              <span class="code-dot dot-green"></span>
+            </div>
+            ACCTVIEW.cbl
+          </div>
+          <pre>       <span class="code-keyword">WORKING-STORAGE SECTION</span>.
+       01  WS-REQUEST-ACCT-ID   PIC 9(8).   <span class="code-comment">*&gt; From user input</span>
+       01  WS-SESSION-USER-ID   PIC 9(8).   <span class="code-comment">*&gt; From session</span>
+
+       <span class="code-keyword">PROCEDURE DIVISION</span>.
+       VIEW-ACCOUNT.
+           <span class="code-comment">*&gt; No ownership check — any authenticated user</span>
+           <span class="code-comment">*&gt; can retrieve any account by ID</span>
+           EXEC SQL
+               SELECT acct_number, owner, ssn, balance, role
+               INTO :WS-ACCT-NUMBER, :WS-ACCT-OWNER,
+                    :WS-ACCT-SSN, :WS-ACCT-BALANCE, :WS-ACCT-ROLE
+               FROM accounts
+               <span class="code-vuln">WHERE acct_id = :WS-REQUEST-ACCT-ID</span>
+               <span class="code-comment">*&gt; Missing: AND owner_id = :WS-SESSION-USER-ID</span>
+           END-EXEC.</pre>
+        </div>
+      </div>
+
+      <button class="collapsible-btn" data-target="hint-content">
+        Hint <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="hint-content">
+        <p>Without the ownership check, the WHERE clause only filters by account number &mdash; which you control. Just enumerate account IDs starting from 1001. Account 1003 belongs to the admin.</p>
+      </div>
+
+      <button class="collapsible-btn" data-target="solution-content">
+        Solution &amp; Remediation <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="solution-content">
+        <h3>Impact</h3>
+        <p>Any authenticated user can view any account &mdash; name, SSN, balance, role. This is a complete confidentiality failure exposing PII and financial data.</p>
+        <h3>Fix</h3>
+        <div class="code-block mt-1">
+          <div class="code-block-header">Fixed version &mdash; add ownership check</div>
+          <pre>           EXEC SQL
+               SELECT acct_number, owner, ssn, balance, role
+               INTO :WS-ACCT-NUMBER, :WS-ACCT-OWNER,
+                    :WS-ACCT-SSN, :WS-ACCT-BALANCE, :WS-ACCT-ROLE
+               FROM accounts
+               WHERE acct_id = :WS-REQUEST-ACCT-ID
+               <span class="code-keyword">AND owner_id = :WS-SESSION-USER-ID</span>
+           END-EXEC</pre>
+        </div>
+        <ul style="color:var(--text-secondary);padding-left:1.5rem;margin-top:8px">
+          <li>Always enforce ownership in the DB query, not just in application logic</li>
+          <li>Use indirect references (session-scoped tokens) instead of raw sequential IDs</li>
+          <li>Log and alert on access to accounts not owned by the requesting session</li>
+        </ul>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/app.js"></script>
+<script>
+const ACCOUNTS = {
+  1001: { account_id: 1001, owner: 'Alice Johnson', ssn: '123-45-6789', balance: 4521.00, role: 'user', account_type: 'Checking' },
+  1002: { account_id: 1002, owner: 'Bob Williams', ssn: '987-65-4321', balance: 12088.50, role: 'user', account_type: 'Savings' },
+  1003: { account_id: 1003, owner: 'Admin Account', ssn: '000-00-0001', balance: 9999999.99, role: 'admin', account_type: 'Master' },
+};
+
+function renderAccount(acct) {
+  const card = document.getElementById('account-result');
+  document.getElementById('res-id').textContent = acct.account_id;
+  document.getElementById('res-owner').textContent = acct.owner;
+  document.getElementById('res-balance').textContent = '$' + acct.balance.toLocaleString('en-US', {minimumFractionDigits: 2});
+  document.getElementById('res-type').textContent = acct.account_type;
+  document.getElementById('res-ssn').textContent = acct.ssn;
+  document.getElementById('res-role').textContent = acct.role;
+  card.classList.add('visible');
+}
+
+document.getElementById('idor-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  setButtonLoading(btn, true);
+  hideError();
+
+  const accountId = parseInt(document.getElementById('account-id').value);
+
+  try {
+    const { ok, data } = await apiCall(`/api/accounts/${accountId}`, 'GET');
+    if (ok && data) renderAccount(data);
+    if (data.role === 'admin' || accountId === 1003) {
+      showFlag('COBOL-GOAT{idor_exposes_admin_account_ssn}');
+    }
+  } catch {
+    const acct = ACCOUNTS[accountId];
+    if (acct) {
+      renderAccount(acct);
+      if (accountId === 1003) showFlag('COBOL-GOAT{idor_exposes_admin_account_ssn}');
+    } else {
+      showError('Account not found. Try 1001, 1002, or 1003.');
+    }
+  } finally {
+    setButtonLoading(btn, false);
+  }
+});
+</script>
+</body>
+</html>

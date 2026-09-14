@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COBOLBank — Sign In</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card">
+
+    <div class="login-logo">
+      <span class="logo-icon">&#127974;</span>
+      <div class="logo-text">COBOL<span>Bank</span></div>
+    </div>
+
+    <p class="login-subtitle">Enterprise Financial Services Portal</p>
+    <p class="login-version">Core Banking System v14.2.1 | COBOL Runtime</p>
+
+    <hr class="login-divider">
+
+    <form id="login-form" autocomplete="off">
+      <div class="form-group">
+        <label for="username">Username or Employee ID</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          placeholder="Enter your username"
+          autocomplete="username"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="Enter your password"
+          autocomplete="current-password"
+          required
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full btn-lg" id="login-btn">
+        Sign In
+      </button>
+
+      <div class="msg-error" id="error-msg"></div>
+      <div class="msg-success" id="success-msg"></div>
+    </form>
+
+    <p class="login-notice">
+      Authorized users only. All access is monitored and logged.
+    </p>
+
+    <div class="login-demo-creds">
+      Training credentials: <strong>admin</strong> / <strong>c0b0ladm1n</strong>
+    </div>
+
+    <p class="login-training">&#127891; Security Training Mode Active</p>
+
+  </div>
+</div>
+
+<script>
+  // If already logged in, redirect
+  const sess = sessionStorage.getItem('cobolgoat_session');
+  if (sess) window.location.href = 'dashboard.html';
+
+  document.getElementById('login-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<span class="loader"></span> Signing in...';
+    btn.disabled = true;
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+
+      if (data.success === true) {
+        sessionStorage.setItem('cobolgoat_session', JSON.stringify({
+          username: data.username || username,
+          userId: data.userId,
+          role: data.role || 'user',
+        }));
+        document.getElementById('success-msg').textContent = 'Authentication successful. Redirecting...';
+        document.getElementById('success-msg').classList.add('visible');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+      } else if (data.rows && data.rows.length > 0 && !data.error) {
+        // SQL injection bypass
+        const row = data.rows[0];
+        sessionStorage.setItem('cobolgoat_session', JSON.stringify({
+          username: row.username || username,
+          userId: row.id,
+          role: row.role || 'user',
+        }));
+        document.getElementById('success-msg').textContent = 'Authentication successful. Redirecting...';
+        document.getElementById('success-msg').classList.add('visible');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
+      } else {
+        document.getElementById('error-msg').textContent =
+          data.error || data.message || 'Invalid credentials. Please try again.';
+        document.getElementById('error-msg').classList.add('visible');
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
+    } catch (err) {
+      // Backend not running — allow demo credentials
+      if (username === 'admin' && password === 'c0b0ladm1n') {
+        sessionStorage.setItem('cobolgoat_session', JSON.stringify({
+          username: 'admin',
+          userId: 1,
+          role: 'admin',
+        }));
+        window.location.href = 'dashboard.html';
+      } else if (username === 'guest' && password === 'guest123') {
+        sessionStorage.setItem('cobolgoat_session', JSON.stringify({
+          username: 'guest',
+          token: 'demo-token',
+          role: 'user',
+        }));
+        window.location.href = 'dashboard.html';
+      } else {
+        document.getElementById('error-msg').textContent =
+          'Cannot reach server. Use training credentials to continue.';
+        document.getElementById('error-msg').classList.add('visible');
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
+    }
+  });
+</script>
+</body>
+</html>

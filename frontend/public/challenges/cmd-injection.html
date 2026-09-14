@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COBOLBank — Reports Center</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-challenge-id="cmd-injection">
+
+<nav class="topbar">
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation">&#9776;</button>
+  <div class="topbar-logo">&#127974; COBOL<span>Bank</span></div>
+  <span class="topbar-badge">Enterprise Portal</span>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-user">Welcome, <strong id="topbar-username">user</strong></div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-sm" id="logout-btn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-section-title">Portal Home</div>
+    <a href="../dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">&#127968;</span> Dashboard</a>
+
+    <div class="sidebar-section-title">Account Services</div>
+    <a href="hardcoded-creds.html" class="sidebar-link" data-challenge-id="hardcoded-creds"><span class="sidebar-link-icon">&#128100;</span> User Authentication</a>
+    <a href="login-sqli.html" class="sidebar-link" data-challenge-id="login-sqli"><span class="sidebar-link-icon">&#128274;</span> Account Access</a>
+
+    <div class="sidebar-section-title">Financial Operations</div>
+    <a href="search-sqli.html" class="sidebar-link" data-challenge-id="search-sqli"><span class="sidebar-link-icon">&#128269;</span> Transaction Search</a>
+    <a href="cmd-injection.html" class="sidebar-link active" data-challenge-id="cmd-injection"><span class="sidebar-link-icon">&#128202;</span> Reports Center</a>
+
+    <div class="sidebar-section-title">Customer Management</div>
+    <a href="idor.html" class="sidebar-link" data-challenge-id="idor"><span class="sidebar-link-icon">&#128179;</span> Account Details</a>
+    <a href="auth-bypass.html" class="sidebar-link" data-challenge-id="auth-bypass"><span class="sidebar-link-icon">&#9881;</span> Administration</a>
+
+    <div class="sidebar-section-title">Compliance &amp; Audit</div>
+    <a href="sensitive-logging.html" class="sidebar-link" data-challenge-id="sensitive-logging"><span class="sidebar-link-icon">&#128196;</span> Activity Monitor</a>
+    <a href="hardcoded-secrets.html" class="sidebar-link" data-challenge-id="hardcoded-secrets"><span class="sidebar-link-icon">&#128295;</span> Configuration</a>
+
+    <div class="sidebar-section-title">System Administration</div>
+    <a href="verbose-errors.html" class="sidebar-link" data-challenge-id="verbose-errors"><span class="sidebar-link-icon">&#128203;</span> API Diagnostics</a>
+    <a href="debug-endpoints.html" class="sidebar-link" data-challenge-id="debug-endpoints"><span class="sidebar-link-icon">&#128187;</span> Developer Tools</a>
+
+    <div class="sidebar-section-title">Banking Tools</div>
+    <a href="integer-overflow.html" class="sidebar-link" data-challenge-id="integer-overflow"><span class="sidebar-link-icon">&#128176;</span> Investment Calculator</a>
+    <a href="path-traversal.html" class="sidebar-link" data-challenge-id="path-traversal"><span class="sidebar-link-icon">&#128196;</span> Document Viewer</a>
+  </aside>
+
+  <main class="main-content">
+
+    <div class="breadcrumb">
+      <a href="../dashboard.html">Dashboard</a>
+      <span class="breadcrumb-sep">/</span>
+      Financial Operations
+      <span class="breadcrumb-sep">/</span>
+      Reports Center
+    </div>
+
+    <div class="page-header">
+      <h1>Generate Financial Reports</h1>
+      <p>Select a report type and delivery address to generate and distribute financial summaries.</p>
+    </div>
+
+    <!-- Report Form -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-header-icon">&#128202;</span>
+        <h2>Report Generator</h2>
+      </div>
+      <div class="card-body">
+        <form id="report-form" style="max-width: 480px;">
+          <div class="form-group">
+            <label for="report-type">Report Type</label>
+            <input type="text" id="report-type" value="monthly" oninput="updateLiveCmd()" placeholder="e.g. monthly, annual, quarterly">
+          </div>
+          <div class="form-group">
+            <label for="email">Delivery Email</label>
+            <input type="text" id="email" value="user@example.com" oninput="updateLiveCmd()" placeholder="recipient@example.com">
+          </div>
+
+          <div class="mb-2">
+            <div class="response-label">Shell Command Being Constructed</div>
+            <div class="query-display" id="live-cmd">generate_report.sh monthly | mail -s 'Report' user@example.com</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="submit-btn">&#128202; Generate Report</button>
+        </form>
+
+        <div class="mt-2">
+          <div class="response-label">Sample Inputs</div>
+          <ul class="payload-list mt-1">
+            <li>
+              <span class="payload-code" data-target="report-type">monthly; cat /etc/passwd</span>
+              <span class="payload-desc">Semicolon separator &mdash; reads passwd file</span>
+            </li>
+            <li>
+              <span class="payload-code" data-target="report-type">monthly; id; whoami</span>
+              <span class="payload-desc">Reveal process user identity</span>
+            </li>
+            <li>
+              <span class="payload-code" data-target="report-type">monthly; ls -la /</span>
+              <span class="payload-desc">List root filesystem contents</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="response-area mt-2">
+          <div class="response-label">Command Output</div>
+          <div class="json-output" id="json-output"></div>
+        </div>
+
+        <div class="flag-box" id="flag-box"></div>
+        <div class="msg-error" id="error-msg"></div>
+      </div>
+    </div>
+
+    <!-- Security Notes -->
+    <div class="security-notes">
+      <div class="security-notes-label">&#127891; Security Notes</div>
+
+      <button class="collapsible-btn" data-target="vuln-info">
+        Vulnerability: OS Command Injection <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="vuln-info">
+        <p>The COBOL report generator passes user-controlled input directly to <code>CALL 'SYSTEM'</code>, which executes a shell command. An attacker can inject additional OS commands using shell metacharacters like <code>;</code>, <code>$(...)</code>, or backticks.</p>
+
+        <div class="code-block mt-2">
+          <div class="code-block-header">
+            <div class="code-block-dots">
+              <span class="code-dot dot-red"></span>
+              <span class="code-dot dot-yellow"></span>
+              <span class="code-dot dot-green"></span>
+            </div>
+            REPORT.cbl
+          </div>
+          <pre>       <span class="code-keyword">WORKING-STORAGE SECTION</span>.
+       01  WS-REPORT-TYPE       PIC X(50).
+       01  WS-EMAIL             PIC X(100).
+       01  WS-COMMAND           PIC X(200).
+
+       <span class="code-keyword">PROCEDURE DIVISION</span>.
+       GENERATE-REPORT.
+           <span class="code-comment">*&gt; Unsanitized user input passed to SYSTEM</span>
+           STRING
+               <span class="code-string">"generate_report.sh "</span>
+               <span class="code-vuln">WS-REPORT-TYPE</span>
+               <span class="code-string">" | mail -s 'Report' "</span>
+               <span class="code-vuln">WS-EMAIL</span>
+               INTO WS-COMMAND
+           END-STRING
+           <span class="code-vuln">CALL 'SYSTEM' USING WS-COMMAND</span>.</pre>
+        </div>
+      </div>
+
+      <button class="collapsible-btn" data-target="hint-content">
+        Hint <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="hint-content">
+        <p>The shell interprets <code>;</code> as a command separator. If you provide <code>monthly; cat /etc/passwd</code> as the report type, the shell runs two commands:</p>
+        <ol style="color:var(--text-secondary);padding-left:1.5rem;margin:8px 0">
+          <li><code>generate_report.sh monthly</code></li>
+          <li><code>cat /etc/passwd</code></li>
+        </ol>
+        <p>The output of both commands is returned.</p>
+      </div>
+
+      <button class="collapsible-btn" data-target="solution-content">
+        Solution &amp; Remediation <span class="chevron">&#9660;</span>
+      </button>
+      <div class="collapsible-content" id="solution-content">
+        <h3>Impact</h3>
+        <p>OS command injection gives the attacker full shell access under the COBOL process's user account. They can read files, exfiltrate data, install malware, or pivot to other systems.</p>
+        <h3>Fix</h3>
+        <ul style="color:var(--text-secondary);padding-left:1.5rem">
+          <li>Never pass user input to <code>CALL 'SYSTEM'</code> or any shell execution function</li>
+          <li>Whitelist allowed report types with a lookup table &mdash; no free-form input</li>
+          <li>If OS invocation is necessary, use an API that separates arguments from the command name</li>
+          <li>Run the COBOL process under a minimal-privilege service account</li>
+        </ul>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/app.js"></script>
+<script>
+function updateLiveCmd() {
+  const rt = document.getElementById('report-type').value || '';
+  const em = document.getElementById('email').value || '';
+  document.getElementById('live-cmd').textContent =
+    `generate_report.sh ${rt} | mail -s 'Report' ${em}`;
+}
+
+document.getElementById('report-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  setButtonLoading(btn, true);
+  hideError();
+
+  const reportType = document.getElementById('report-type').value;
+  const email = document.getElementById('email').value;
+
+  try {
+    const { ok, data } = await apiCall('/api/reports/generate', 'POST', { reportType, email });
+    displayJson(data);
+    if (data.output && (data.output.includes('root:') || data.output.includes('passwd'))) {
+      showFlag('COBOL-GOAT{command_injection_via_cobol_system_call}');
+    } else if (ok) {
+      showFlag('COBOL-GOAT{command_injection_via_cobol_system_call}');
+    }
+  } catch {
+    const injected = reportType.includes(';') || reportType.includes('$') || reportType.includes('`');
+    let output = '';
+    if (injected) {
+      if (reportType.includes('passwd')) {
+        output = 'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\ncobol:x:1001:1001:COBOL Service Account:/home/cobol:/bin/sh\n';
+      } else if (reportType.includes('ls')) {
+        output = 'bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  srv  sys  tmp  usr  var\n';
+      } else if (reportType.includes('id') || reportType.includes('whoami')) {
+        output = 'uid=1001(cobol) gid=1001(cobol) groups=1001(cobol)\ncobol\n';
+      } else {
+        output = 'Command executed.\n';
+      }
+    }
+    const resp = {
+      command_executed: `generate_report.sh ${reportType} | mail -s 'Report' ${email}`,
+      injected,
+      output: injected ? output : 'Report queued for generation.',
+    };
+    displayJson(resp);
+    if (injected) showFlag('COBOL-GOAT{command_injection_via_cobol_system_call}');
+  } finally {
+    setButtonLoading(btn, false);
+  }
+});
+</script>
+</body>
+</html>
