@@ -21,6 +21,7 @@
 ## Table of Contents
 
 - [What is COBOLBank?](#what-is-cobolbank)
+- [Screenshots](#screenshots)
 - [Quick Start](#quick-start)
 - [Credentials & Test Data](#credentials--test-data)
 - [Architecture](#architecture)
@@ -55,6 +56,25 @@ yet has almost no dedicated security training tooling.
 - CTF organizers looking for unusual challenge themes
 - Security trainers running hands-on workshops on financial-sector systems
 - Researchers exploring automated remediation of COBOL vulnerabilities
+
+---
+
+## Screenshots
+
+### Dashboard
+
+![COBOLBank Dashboard](docs/screenshots/dashboard.png)
+
+The portal home shows a realistic enterprise banking interface with account balance,
+module progress tracker, and links to each challenge module.
+
+### Reports Center — OS Command Injection
+
+![Reports Center](docs/screenshots/reports-center.png)
+
+The Reports Center live-previews the shell command constructed from user input,
+making the OS command injection surface immediately visible. Sample payloads like
+`monthly; cat /etc/passwd` are included in the UI to guide trainees.
 
 ---
 
