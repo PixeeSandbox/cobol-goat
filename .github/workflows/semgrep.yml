@@ -58,6 +58,16 @@ jobs:
           sarif_file: semgrep-community.sarif
           category: semgrep-cobol-community
 
+      # ── Save SARIF files as downloadable artifacts ─────────────────────────
+      - name: Upload SARIF as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sarif
+          path: |
+            semgrep-results.sarif
+            semgrep-community.sarif
+          retention-days: 30
+
       # ── Print summary to workflow log ───────────────────────────────────────
       - name: Print text summary
         run: |
