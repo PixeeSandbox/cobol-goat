@@ -1,0 +1,208 @@
+rules:
+
+  # ── OS Command Injection (CALL "SYSTEM") ────────────────────────────────────
+  #
+  # CALL "SYSTEM" passes its argument to /bin/sh. Any variable assembled from
+  # CGI user input (CALL "urlparam" / CALL "jsonget") makes this an injection
+  # point. Fires on: login.cbl, report-gen.cbl, admin-check.cbl
+  - id: cobol-cgi-os-command-injection
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-78
+      owasp: "A03:2021 - Injection"
+      confidence: HIGH
+      references:
+        - https://cwe.mitre.org/data/definitions/78.html
+    message: >
+      CALL "SYSTEM" executes a shell command. If $CMD is built from user-supplied
+      CGI input (via CALL "urlparam" or CALL "jsonget"), an attacker can inject
+      shell metacharacters to run arbitrary OS commands as the web server process
+      (running as root in this container). Replace with a safe parameterized
+      alternative or reject input containing shell metacharacters.
+    options:
+      generic_engine: aliengrep
+      generic_extra_word_characters: ["-"]
+      generic_caseless: true
+    pattern: CALL "SYSTEM" USING $CMD RETURNING $RET
+    paths:
+      include:
+        - "*.cbl"
+
+  # ── SQL Injection via STRING → WS-SQL-QUERY ─────────────────────────────────
+  #
+  # The WS-SQL-QUERY field is built by STRINGing user-controlled values together
+  # and then passed verbatim to CALL "sqlexec". Any CGI-derived value in the
+  # STRING makes this injectable.
+  # Fires on: login.cbl, search.cbl, account-lookup.cbl
+  - id: cobol-cgi-sql-injection-string-concat
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-89
+      owasp: "A03:2021 - Injection"
+      confidence: HIGH
+      references:
+        - https://cwe.mitre.org/data/definitions/89.html
+    message: >
+      SQL query assembled by STRING concatenation is stored in WS-SQL-QUERY and
+      executed verbatim by CALL "sqlexec". Any field derived from CALL "urlparam"
+      or CALL "jsonget" is attacker-controlled. Use parameterized queries (sqlite3
+      bind variables) or allowlist-validate all input before concatenation.
+    options:
+      generic_engine: aliengrep
+      generic_extra_word_characters: ["-"]
+      generic_caseless: true
+    pattern: INTO WS-SQL-QUERY
+    paths:
+      include:
+        - "*.cbl"
+
+  # ── Path Traversal via ASSIGN TO DYNAMIC ───────────────────────────────────
+  #
+  # FILE-CONTROL's ASSIGN TO DYNAMIC binds a variable as the file path at OPEN
+  # time. User-controlled paths allow directory traversal.
+  # Fires on: file-read.cbl, session-check.cbl, debug.cbl
+  - id: cobol-cgi-path-traversal-assign-dynamic
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-22
+      owasp: "A01:2021 - Broken Access Control"
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/22.html
+    message: >
+      SELECT ... ASSIGN TO DYNAMIC $PATH binds a runtime variable as the file
+      path at OPEN time. If $PATH is constructed from CGI user input without
+      canonicalization, an attacker can use ../ sequences to read arbitrary files.
+      Resolve the path, then assert it starts with the expected base directory
+      before opening.
+    options:
+      generic_engine: aliengrep
+      generic_extra_word_characters: ["-"]
+      generic_caseless: true
+    pattern: SELECT $FILE ASSIGN TO DYNAMIC $PATH
+    paths:
+      include:
+        - "*.cbl"
+
+  # ── Hardcoded Password in VALUE Clause ─────────────────────────────────────
+  #
+  # Passwords in VALUE clauses are compiled into the binary and extractable
+  # with strings(1). Fires on: login.cbl (WS-HARDCODED-PASS, WS-HARDCODED-USER)
+  - id: cobol-hardcoded-password
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-798
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      confidence: HIGH
+      references:
+        - https://cwe.mitre.org/data/definitions/798.html
+    message: >
+      Field $FIELD has a hardcoded credential in its VALUE clause. Credentials
+      compiled into COBOL binaries are recoverable with strings(1) or a hex editor.
+      Replace with: ACCEPT $FIELD FROM ENVIRONMENT "COBOLBANK_PASSWORD".
+    options:
+      generic_engine: aliengrep
+      generic_extra_word_characters: ["-"]
+      generic_caseless: true
+    patterns:
+      - pattern: 01 $FIELD ... VALUE "$SECRET".
+      - metavariable-regex:
+          metavariable: $FIELD
+          regex: '(?i).*(PASS|PASSWORD|PWD|PASSWD).*'
+    paths:
+      include:
+        - "*.cbl"
+
+  # ── Hardcoded Secret Key / API Key ─────────────────────────────────────────
+  #
+  # API keys, encryption keys, JWT secrets hardcoded in VALUE clauses.
+  # Fires on: config-reader.cbl (CFG-AWS-KEY, CFG-ENCRYPT-KEY, CFG-JWT-SECRET, etc.)
+  - id: cobol-hardcoded-secret-key
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-798
+      owasp: "A02:2021 - Cryptographic Failures"
+      confidence: HIGH
+      references:
+        - https://cwe.mitre.org/data/definitions/798.html
+    message: >
+      Field $FIELD appears to contain a hardcoded secret (API key, encryption key,
+      or token) in its VALUE clause. Secrets in source are exposed via version
+      control history and binary analysis. Use ACCEPT $FIELD FROM ENVIRONMENT
+      "SECRET_NAME" to read them at runtime from a secrets manager or env file.
+    options:
+      generic_engine: aliengrep
+      generic_extra_word_characters: ["-"]
+      generic_caseless: true
+    patterns:
+      - pattern: 01 $FIELD ... VALUE "$SECRET".
+      - metavariable-regex:
+          metavariable: $FIELD
+          regex: '(?i).*(KEY|SECRET|TOKEN|JWT|ENCRYPT|API).*'
+    paths:
+      include:
+        - "*.cbl"
+
+  # ── SQL Query Disclosed in HTTP Response ────────────────────────────────────
+  #
+  # Including the raw SQL in API responses reveals schema and aids SQL injection.
+  # Fires on: login.cbl, account-lookup.cbl, search.cbl (all return "query" field)
+  - id: cobol-sql-query-disclosed-in-response
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-209
+      owasp: "A05:2021 - Security Misconfiguration"
+      confidence: HIGH
+    message: >
+      The raw SQL query string WS-SQL-QUERY is included in the HTTP response body.
+      Exposing SQL reveals table names, column names, and query structure, which
+      materially aids SQL injection attacks. Remove the "query" field from
+      production API responses.
+    options:
+      generic_engine: aliengrep
+      generic_extra_word_characters: ["-"]
+      generic_caseless: true
+    pattern: TRIM(WS-SQL-QUERY)
+    paths:
+      include:
+        - "*.cbl"
+
+  # ── Unauthenticated Environment Variable Dump ───────────────────────────────
+  #
+  # debug.cbl reads and displays all process env vars without any auth check.
+  - id: cobol-cgi-unauthenticated-env-dump
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-497
+      owasp: "A05:2021 - Security Misconfiguration"
+      confidence: MEDIUM
+    message: >
+      Process environment variables are read and written to the HTTP response.
+      Environment variables typically contain database passwords, API keys, and
+      connection strings (e.g. COBOLGOAT_DB, COB_LIBRARY_PATH). Ensure all
+      diagnostic endpoints require authentication before returning this data.
+    options:
+      generic_engine: aliengrep
+      generic_extra_word_characters: ["-"]
+      generic_caseless: true
+    pattern: |
+      ACCEPT $VAR FROM ENVIRONMENT $ENV
+      ...
+      DISPLAY $VAR
+    paths:
+      include:
+        - "*.cbl"

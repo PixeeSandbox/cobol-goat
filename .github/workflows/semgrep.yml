@@ -1,0 +1,68 @@
+name: Semgrep COBOL Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan every Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+
+jobs:
+  semgrep:
+    name: COBOL vulnerability scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # for uploading SARIF to GitHub Security tab
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      # ── Run custom COBOLBank rules ──────────────────────────────────────────
+      - name: Run COBOLBank rules (SARIF)
+        run: |
+          semgrep \
+            --config .semgrep/cobolbank.yaml \
+            cobol/cgi/ \
+            --sarif \
+            --output semgrep-results.sarif \
+            --no-error   # don't fail the step; let the upload decide
+        continue-on-error: true
+
+      # ── Upload to GitHub Security tab ──────────────────────────────────────
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep-cobol
+
+      # ── Also run the community akabe1 COBOL rules ──────────────────────────
+      - name: Run akabe1 community COBOL rules
+        run: |
+          semgrep \
+            --config p/default \
+            --include '*.cbl' \
+            --sarif \
+            --output semgrep-community.sarif \
+            --no-error
+        continue-on-error: true
+
+      - name: Upload community SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-community.sarif
+          category: semgrep-cobol-community
+
+      # ── Print summary to workflow log ───────────────────────────────────────
+      - name: Print text summary
+        run: |
+          semgrep \
+            --config .semgrep/cobolbank.yaml \
+            cobol/cgi/ \
+            --text \
+            --no-error || true
